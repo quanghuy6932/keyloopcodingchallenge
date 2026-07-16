@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: keyloop-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-keyloop_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-keyloop_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - keyloop-network
+    restart: unless-stopped
+
+  # Node.js Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: keyloop-app
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-keyloop_db}
+      SALES_API_URL: ${SALES_API_URL:-http://localhost:3001}
+      SERVICE_API_URL: ${SERVICE_API_URL:-http://localhost:3002}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - keyloop-network
+    restart: unless-stopped
+    command: npm run dev
+
+  # Mock Sales API Service (for testing)
+  sales-api:
+    image: node:20-alpine
+    container_name: keyloop-sales-api
+    working_dir: /app
+    environment:
+      PORT: 3001
+      API_TYPE: sales
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./scripts/mock-api.js:/app/index.js
+    networks:
+      - keyloop-network
+    restart: unless-stopped
+    command: node index.js
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Mock Service API Service (for testing)
+  service-api:
+    image: node:20-alpine
+    container_name: keyloop-service-api
+    working_dir: /app
+    environment:
+      PORT: 3002
+      API_TYPE: service
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./scripts/mock-api.js:/app/index.js
+    networks:
+      - keyloop-network
+    restart: unless-stopped
+    command: node index.js
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  keyloop-network:
+    driver: bridge

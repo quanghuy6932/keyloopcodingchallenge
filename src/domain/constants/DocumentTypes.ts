@@ -1,0 +1,39 @@
+/**
+ * Domain Constants - Document Types and Sources
+ */
+
+export const DOCUMENT_SOURCES = {
+  SALES_SYSTEM: 'SALES_SYSTEM',
+  SERVICE_SYSTEM: 'SERVICE_SYSTEM'
+} as const;
+
+export const DOCUMENT_TYPES = {
+  CONTRACT: 'CONTRACT',
+  INVOICE: 'INVOICE',
+  MAINTENANCE_RECORD: 'MAINTENANCE_RECORD',
+  REGISTRATION: 'REGISTRATION',
+  WARRANTY_CLAIM: 'WARRANTY_CLAIM',
+  QUOTATION: 'QUOTATION',
+  OTHER: 'OTHER'
+} as const;
+
+export const VIN_CONSTRAINTS = {
+  LENGTH: 17,
+  PATTERN: /^[A-Z0-9]{17}$/,
+  DESCRIPTION: 'VIN must be exactly 17 alphanumeric characters'
+} as const;
+
+export const API_TIMEOUTS = {
+  INDIVIDUAL_API_TIMEOUT_MS: 5000,
+  OVERALL_REQUEST_TIMEOUT_MS: 10000,
+  DATABASE_QUERY_TIMEOUT_MS: 3000,
+  CONNECTION_TIMEOUT_MS: 2000
+} as const;
+
+export const PAGINATION_DEFAULTS = {
+  LIMIT: 100,
+  OFFSET: 0,
+  MAX_LIMIT: 1000
+} as const;
+
+export const SEARCH_RETENTION_DAYS = 90;
